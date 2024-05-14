@@ -1,13 +1,26 @@
 cmake_minimum_required(VERSION 3.14)
 include(FetchContent)
-FetchContent_Declare(
-  kinova_binary_api
-  URL https://artifactory.kinovaapps.com:443/artifactory/generic-public/kortex/API/2.5.0/linux_x86-64_x86_gcc.zip
-  URL_HASH MD5=64bd86e7ab8bda90ef1fc7d6a356e080
-)
-FetchContent_MakeAvailable(kinova_binary_api)
 
 project(kortex_driver)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+  set(API_URL https://artifactory.kinovaapps.com:443/artifactory/generic-public/kortex/API/2.5.0/linux_x86-64_x86_gcc.zip)
+	set(URL_HASH_MD5 64bd86e7ab8bda90ef1fc7d6a356e080)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+  set(API_URL https://artifactory.kinovaapps.com:443/artifactory/generic-public/kortex/API/2.6.0/linux_aarch64_gcc_7.4.zip)
+	set(URL_HASH_MD5 d7771a7c106888717ace359164d40235)
+else()
+  set(API_URL "")
+  message(FATAL_ERROR "Unsupported System: currently support is for Linux on x86_64 or aarch4. Detected ${CMAKE_SYSTEM_NAME} and ${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
+FetchContent_Declare(
+  kinova_binary_api
+  URL ${API_URL}
+  URL_HASH MD5=${URL_HASH_MD5}
+	DOWNLOAD_EXTRACT_TIMESTAMP true
+)
+FetchContent_MakeAvailable(kinova_binary_api)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -27,16 +40,6 @@ find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(kortex_api REQUIRED)
-
-#Current: only support Linux x86_64
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-  set(API_URL https://artifactory.kinovaapps.com:443/artifactory/generic-public/kortex/API/2.5.0/linux_x86-64_x86_gcc.zip)
-else()
-  # TODO(future) to support ARM or other builds logic could go here to fetch the precompiled libKortexApiCpp.a
-  # see notes in kortex_api CMakeList.txt
-  message(WARNING "Detected ${CMAKE_SYSTEM_NAME} and ${CMAKE_SYSTEM_PROCESSOR}")
-  message(FATAL_ERROR "Unsupported System: currently support is for Linux x68_64.")
-endif()
 
 # CMake does not allow IMPORTED libraries to be installed
 # The package kortex_api will download and setup the include directories
