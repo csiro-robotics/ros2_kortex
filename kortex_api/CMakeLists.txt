@@ -17,9 +17,9 @@ endif()
 
 FetchContent_Declare(
   kinova_binary_api
+  DOWNLOAD_EXTRACT_TIMESTAMP true
   URL ${API_URL}
   URL_HASH MD5=${URL_HASH_MD5}
-	DOWNLOAD_EXTRACT_TIMESTAMP true
 )
 
 FetchContent_MakeAvailable(kinova_binary_api)

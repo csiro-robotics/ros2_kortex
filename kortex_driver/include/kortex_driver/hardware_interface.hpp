@@ -35,11 +35,16 @@
 
 #include "rclcpp/macros.hpp"
 #include "rclcpp/time.hpp"
+#include "rclcpp/clock.hpp"
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
+
+#include <pinocchio/algorithm/joint-configuration.hpp>
+#include <pinocchio/algorithm/rnea.hpp>
+#include <pinocchio/parsers/sample-models.hpp>
 
 #include "kortex_driver/visibility_control.h"
 
@@ -49,6 +54,7 @@
 #include "SessionManager.h"
 #include "TransportClientTcp.h"
 #include "TransportClientUdp.h"
+#include "ActuatorConfigClientRpc.h"
 
 namespace hardware_interface
 {
@@ -67,11 +73,15 @@ namespace kortex_driver
 enum class StopStartInterface
 {
   NONE,
-  STOP_POS_VEL,
+  STOP_JOINT_POS,
+  STOP_JOINT_VEL,
+  STOP_JOINT_EFF,
   STOP_TWIST,
   STOP_GRIPPER,
   STOP_FAULT_CTRL,
-  START_POS_VEL,
+  START_JOINT_POS,
+  START_JOINT_VEL,
+  START_JOINT_EFF,
   START_TWIST,
   START_GRIPPER,
   START_FAULT_CTRL,
@@ -80,7 +90,8 @@ class KortexMultiInterfaceHardware : public hardware_interface::SystemInterface
 {
 public:
   KortexMultiInterfaceHardware();
-
+  ~KortexMultiInterfaceHardware();
+  
   RCLCPP_SHARED_PTR_DEFINITIONS(KortexMultiInterfaceHardware);
 
   KORTEX_DRIVER_PUBLIC
@@ -129,6 +140,8 @@ private:
   k_api::Base::BaseClient base_;
   k_api::BaseCyclic::BaseCyclicClient base_cyclic_;
   k_api::BaseCyclic::Command base_command_;
+  k_api::ActuatorConfig::ActuatorConfigClient actuator_config_;
+
   std::size_t actuator_count_;
   // To minimize bandwidth we synchronize feedback with the robot only when write() is called
   k_api::BaseCyclic::Feedback feedback_;
@@ -152,6 +165,7 @@ private:
   double gripper_force_command_ = 0.0;
   double gripper_speed_command_ = 0.0;
 
+  rclcpp::Clock clock_;
   rclcpp::Time controller_switch_time_;
   std::atomic<bool> block_write = false;
   k_api::Base::ServoingMode arm_mode_;
@@ -170,11 +184,16 @@ private:
 
   // changing active controller on the hardware
   k_api::Base::ServoingModeInformation servoing_mode_hw_;
+  k_api::ActuatorConfig::ControlModeInformation control_mode_message_;
+
   // what controller is running
   bool joint_based_controller_running_;
   bool twist_controller_running_;
   bool gripper_controller_running_;
-  bool fault_controller_running_;
+  bool estop_controller_running_;
+  
+  k_api::ActuatorConfig::ControlMode joint_control_mode_ = k_api::ActuatorConfig::ControlMode::POSITION;
+
   // switching auxiliary vars
   // keeping track of which controller is active so appropriate control mode can be adjusted
   // controller manager sends array of interfaces that should be stopped/started and this is the
@@ -182,19 +201,23 @@ private:
   // (different controllers claim different interfaces)
   std::vector<StopStartInterface> stop_modes_;
   std::vector<StopStartInterface> start_modes_;
+
   // switching auxiliary booleans
   bool stop_joint_based_controller_;
   bool stop_twist_controller_;
   bool stop_gripper_controller_;
-  bool stop_fault_controller_;
+  bool stop_estop_controller_;
   bool start_joint_based_controller_;
   bool start_twist_controller_;
   bool start_gripper_controller_;
-  bool start_fault_controller_;
+  bool start_estop_controller_;
 
   // first pass flag
   bool first_pass_;
 
+  // flag to indicate if we use the TORQUE or TORQUE_HIGH_VELOCITY mode for effort based control mode
+  bool using_high_velocity_torque_mode_;
+  
   // gripper stuff
   std::string gripper_joint_name_;
   bool use_internal_bus_gripper_comm_;
@@ -202,13 +225,22 @@ private:
   // temp variables to use in update loop
   float cmd_degrees_tmp_;
   float cmd_vel_tmp_;
+  float cmd_eff_tmp_;
   int num_turns_tmp_ = 0;
 
   // fault control
-  double reset_fault_cmd_;
-  double reset_fault_async_success_;
+  double estop_cmd_;
+  double estop_async_success_;
   double in_fault_;
   static constexpr double NO_CMD = std::numeric_limits<double>::quiet_NaN();
+
+  // Model for gravity compensation
+  bool gravity_compensation_enabled_;
+  std::string urdf_filepath_;
+  Eigen::VectorXd grav_joint_q_;
+  Eigen::VectorXd grav_torques_;
+  pinocchio::Model grav_model;
+  pinocchio::Data  grav_data;
 
   void sendTwistCommand();
   void incrementId();

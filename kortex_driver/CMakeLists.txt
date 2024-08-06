@@ -16,9 +16,9 @@ endif()
 
 FetchContent_Declare(
   kinova_binary_api
+  DOWNLOAD_EXTRACT_TIMESTAMP true
   URL ${API_URL}
   URL_HASH MD5=${URL_HASH_MD5}
-	DOWNLOAD_EXTRACT_TIMESTAMP true
 )
 FetchContent_MakeAvailable(kinova_binary_api)
 
@@ -38,8 +38,13 @@ add_definitions(-D_OS_UNIX=1)
 find_package(ament_cmake REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
+find_package(pinocchio REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(kortex_api REQUIRED)
+
+# special cmake handling of eigen3
+find_package(eigen3_cmake_module REQUIRED)
+find_package(Eigen3)
 
 # CMake does not allow IMPORTED libraries to be installed
 # The package kortex_api will download and setup the include directories
@@ -69,8 +74,10 @@ ament_target_dependencies(
   ${PROJECT_NAME}
   SYSTEM kortex_api
   hardware_interface
+  pinocchio
   pluginlib
   rclcpp
+  Eigen3
 )
 
 pluginlib_export_plugin_description_file(hardware_interface hardware_interface_plugin.xml)
@@ -95,10 +102,13 @@ ament_export_include_directories(
 ament_export_libraries(
   ${PROJECT_NAME}
 )
+ament_export_dependencies(eigen3_cmake_module)
 ament_export_dependencies(
   hardware_interface
+  pinocchio
   kortex_api
   pluginlib
   rclcpp
+  Eigen3
 )
 ament_package()
