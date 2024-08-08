@@ -4,139 +4,6 @@
 <!-- |    EDITING THIS FILE BY HAND IS NOT RECOMMENDED                                 | -->
 <!-- =================================================================================== -->
 <robot name="gen3_">
-  <!-- create link fixed to the "world" -->
-  <link name="world"/>
-  <material name="aluminum">
-    <color rgba="0.5 0.5 0.5 1"/>
-  </material>
-  <material name="plastic">
-    <color rgba="0.1 0.1 0.1 1"/>
-  </material>
-  <ros2_control name="gen3_KortexMultiInterfaceHardware" type="system">
-    <hardware>
-      <plugin>kortex2_driver/KortexMultiInterfaceHardware</plugin>
-      <param name="robot_ip">192.168.11.11</param>
-      <param name="username">admin</param>
-      <param name="password">admin</param>
-      <param name="port">10000</param>
-      <param name="port_realtime">10001</param>
-      <param name="session_inactivity_timeout_ms">60000</param>
-      <param name="connection_inactivity_timeout_ms">2000</param>
-      <param name="tf_prefix">&quot;&quot;</param>
-      <param name="use_internal_bus_gripper_comm">False</param>
-      <param name="gripper_joint_name">finger_joint</param>
-    </hardware>
-    <joint name="gen3_joint_1">
-      <command_interface name="position">
-        <param name="min">${-2*pi}</param>
-        <param name="max">${2*pi}</param>
-      </command_interface>
-      <command_interface name="velocity">
-        <param name="min">-3.15</param>
-        <param name="max">3.15</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="gen3_joint_2">
-      <command_interface name="position">
-        <param name="min">-2.41</param>
-        <param name="max">2.41</param>
-      </command_interface>
-      <command_interface name="velocity">
-        <param name="min">-3.15</param>
-        <param name="max">3.15</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="gen3_joint_3">
-      <command_interface name="position">
-        <param name="min">${-2*pi}</param>
-        <param name="max">${2*pi}</param>
-      </command_interface>
-      <command_interface name="velocity">
-        <param name="min">-3.15</param>
-        <param name="max">3.15</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="gen3_joint_4">
-      <command_interface name="position">
-        <param name="min">-2.66</param>
-        <param name="max">2.66</param>
-      </command_interface>
-      <command_interface name="velocity">
-        <param name="min">-3.2</param>
-        <param name="max">3.2</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="gen3_joint_5">
-      <command_interface name="position">
-        <param name="min">${-2*pi}</param>
-        <param name="max">${2*pi}</param>
-      </command_interface>
-      <command_interface name="velocity">
-        <param name="min">-3.2</param>
-        <param name="max">3.2</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="gen3_joint_6">
-      <command_interface name="position">
-        <param name="min">-2.23</param>
-        <param name="max">2.23</param>
-      </command_interface>
-      <command_interface name="velocity">
-        <param name="min">-3.2</param>
-        <param name="max">3.2</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="gen3_joint_7">
-      <command_interface name="position">
-        <param name="min">${-2*pi}</param>
-        <param name="max">${2*pi}</param>
-      </command_interface>
-      <command_interface name="velocity">
-        <param name="min">-3.2</param>
-        <param name="max">3.2</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-  </ros2_control>
-  <joint name="gen3_base_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
-    <parent link="world"/>
-    <child link="gen3_base_link"/>
-  </joint>
   <link name="gen3_base_link">
     <inertial>
       <origin rpy="0 0 0" xyz="-0.000648 -0.000166 0.084487"/>
@@ -563,14 +430,14 @@
     <child link="gen3_robotiq_85_base_link"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
   </joint>
-  <joint name="gen3_robotiq_85_left_knuckle_joint" type="revolute">
+  <joint name="gen3_robotiq_85_left_knuckle_joint" type="fixed">
     <parent link="gen3_robotiq_85_base_link"/>
     <child link="gen3_robotiq_85_left_knuckle_link"/>
     <axis xyz="0 -1 0"/>
     <origin rpy="0 0 0" xyz="0.03060114 0.0 0.05490452"/>
     <limit effort="50" lower="0.0" upper="0.8" velocity="0.5"/>
   </joint>
-  <joint name="gen3_robotiq_85_right_knuckle_joint" type="revolute">
+  <joint name="gen3_robotiq_85_right_knuckle_joint" type="fixed">
     <parent link="gen3_robotiq_85_base_link"/>
     <child link="gen3_robotiq_85_right_knuckle_link"/>
     <axis xyz="0 -1 0"/>
@@ -588,28 +455,28 @@
     <child link="gen3_robotiq_85_right_finger_link"/>
     <origin rpy="0 0 0" xyz="-0.03152616 0.0 -0.00376347"/>
   </joint>
-  <joint name="gen3_robotiq_85_left_inner_knuckle_joint" type="continuous">
+  <joint name="gen3_robotiq_85_left_inner_knuckle_joint" type="fixed">
     <parent link="gen3_robotiq_85_base_link"/>
     <child link="gen3_robotiq_85_left_inner_knuckle_link"/>
     <axis xyz="0 -1 0"/>
     <origin rpy="0 0 0" xyz="0.0127 0.0 0.06142"/>
     <mimic joint="gen3_robotiq_85_left_knuckle_joint"/>
   </joint>
-  <joint name="gen3_robotiq_85_right_inner_knuckle_joint" type="continuous">
+  <joint name="gen3_robotiq_85_right_inner_knuckle_joint" type="fixed">
     <parent link="gen3_robotiq_85_base_link"/>
     <child link="gen3_robotiq_85_right_inner_knuckle_link"/>
     <axis xyz="0 -1 0"/>
     <origin rpy="0 0 0" xyz="-0.0127 0.0 0.06142"/>
     <mimic joint="gen3_robotiq_85_left_knuckle_joint" multiplier="-1"/>
   </joint>
-  <joint name="gen3_robotiq_85_left_finger_tip_joint" type="continuous">
+  <joint name="gen3_robotiq_85_left_finger_tip_joint" type="fixed">
     <parent link="gen3_robotiq_85_left_finger_link"/>
     <child link="gen3_robotiq_85_left_finger_tip_link"/>
     <axis xyz="0 -1 0"/>
     <origin rpy="0 0 0" xyz="0.00563134 0.0 0.04718515"/>
     <mimic joint="gen3_robotiq_85_left_knuckle_joint" multiplier="-1"/>
   </joint>
-  <joint name="gen3_robotiq_85_right_finger_tip_joint" type="continuous">
+  <joint name="gen3_robotiq_85_right_finger_tip_joint" type="fixed">
     <parent link="gen3_robotiq_85_right_finger_link"/>
     <child link="gen3_robotiq_85_right_finger_tip_link"/>
     <axis xyz="0 -1 0"/>
@@ -648,72 +515,24 @@
         <box size="0.02005 0.099 0.023"/>
       </geometry>
     </collision>
+    <!-- The following are not reliable values, and should not be used for modeling -->
+    <!--
     <inertial>
       <mass value="0.072"/>
-      <!-- The following are not reliable values, and should not be used for modeling -->
       <origin xyz="0 0 0"/>
       <inertia ixx="0.003881243" ixy="0.0" ixz="0.0" iyy="0.000498940" iyz="0.0" izz="0.003879257"/>
     </inertial>
+    -->
   </link>
-  <!-- camera depth joints and links -->
-  <joint name="wrist_mounted_camera_depth_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
-    <parent link="wrist_mounted_camera_link"/>
-    <child link="wrist_mounted_camera_depth_frame"/>
-  </joint>
-  <link name="wrist_mounted_camera_depth_frame"/>
-  <joint name="wrist_mounted_camera_depth_optical_joint" type="fixed">
-    <origin rpy="-1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0"/>
-    <parent link="wrist_mounted_camera_depth_frame"/>
-    <child link="wrist_mounted_camera_depth_optical_frame"/>
-  </joint>
-  <link name="wrist_mounted_camera_depth_optical_frame"/>
-  <!-- camera left IR joints and links -->
-  <joint name="wrist_mounted_camera_infra1_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0.0 0"/>
-    <parent link="wrist_mounted_camera_link"/>
-    <child link="wrist_mounted_camera_infra1_frame"/>
-  </joint>
-  <link name="wrist_mounted_camera_infra1_frame"/>
-  <joint name="wrist_mounted_camera_infra1_optical_joint" type="fixed">
-    <origin rpy="-1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0"/>
-    <parent link="wrist_mounted_camera_infra1_frame"/>
-    <child link="wrist_mounted_camera_infra1_optical_frame"/>
-  </joint>
-  <link name="wrist_mounted_camera_infra1_optical_frame"/>
-  <!-- camera right IR joints and links -->
-  <joint name="wrist_mounted_camera_infra2_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 -0.055 0"/>
-    <parent link="wrist_mounted_camera_link"/>
-    <child link="wrist_mounted_camera_infra2_frame"/>
-  </joint>
-  <link name="wrist_mounted_camera_infra2_frame"/>
-  <joint name="wrist_mounted_camera_infra2_optical_joint" type="fixed">
-    <origin rpy="-1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0"/>
-    <parent link="wrist_mounted_camera_infra2_frame"/>
-    <child link="wrist_mounted_camera_infra2_optical_frame"/>
-  </joint>
-  <link name="wrist_mounted_camera_infra2_optical_frame"/>
-  <!-- camera color joints and links -->
-  <joint name="wrist_mounted_camera_color_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0.015 0"/>
-    <parent link="wrist_mounted_camera_link"/>
-    <child link="wrist_mounted_camera_color_frame"/>
-  </joint>
-  <link name="wrist_mounted_camera_color_frame"/>
-  <joint name="wrist_mounted_camera_color_optical_joint" type="fixed">
-    <origin rpy="-1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0"/>
-    <parent link="wrist_mounted_camera_color_frame"/>
-    <child link="wrist_mounted_camera_color_optical_frame"/>
-  </joint>
-  <link name="wrist_mounted_camera_color_optical_frame"/>
   <!-- Wrist Camera Bracket -->
   <link name="wrist_camera_mount_link">
+    <!-- 
     <inertial>
       <origin rpy="0 0 0" xyz="0.000281 0.011402 -0.029798"/>
       <mass value="0.5"/>
       <inertia ixx="0.000587" ixy="3E-06" ixz="3E-06" iyy="0.000369" iyz="-0.000118" izz="0.000609"/>
     </inertial>
+    -->
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>

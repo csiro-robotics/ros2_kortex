@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import os
-
+import yaml
 from launch import LaunchDescription
 from launch.substitutions import LaunchConfiguration
 from launch.actions import (
@@ -26,6 +26,17 @@ from launch.conditions import IfCondition
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 from moveit_configs_utils import MoveItConfigsBuilder
+
+
+def load_yaml(package_name, file_path):
+    package_path = get_package_share_directory(package_name)
+    absolute_file_path = os.path.join(package_path, file_path)
+
+    try:
+        with open(absolute_file_path, "r") as file:
+            return yaml.safe_load(file)
+    except EnvironmentError:  # parent of IOError, OSError *and* WindowsError where available
+        return None
 
 
 def launch_setup(context, *args, **kwargs):
@@ -66,6 +77,30 @@ def launch_setup(context, *args, **kwargs):
             moveit_config.to_dict(),
         ],
     )
+
+    # Get parameters for the Servo node
+    servo_yaml = load_yaml("kinova_gen3_7dof_robotiq_2f_85_moveit_config", "config/gen3_servoing.yaml")
+    servo_params = {"moveit_servo": servo_yaml}
+    acceleration_filter_update_period = {"update_period": 0.01}
+    planning_group_name = {"planning_group_name": "manipulator"}
+
+    # Moveit Servoing node 
+    servo_node = Node(
+        package="moveit_servo",
+        executable="servo_node",
+        name="servo_node",
+        parameters=[
+            servo_params,
+            acceleration_filter_update_period,
+            planning_group_name,
+            moveit_config.robot_description,
+            moveit_config.robot_description_semantic,
+            moveit_config.robot_description_kinematics,
+            moveit_config.joint_limits,
+        ],
+        output="screen",
+    )
+
 
     # Static TF
     static_tf = Node(
@@ -134,7 +169,7 @@ def launch_setup(context, *args, **kwargs):
         package="rviz2",
         condition=IfCondition(launch_rviz),
         executable="rviz2",
-        name="rviz2_moveit",
+        name="rviz2_kinova_moveit",
         output="log",
         arguments=["-d", rviz_config_file],
         parameters=[
@@ -173,6 +208,7 @@ def launch_setup(context, *args, **kwargs):
         robot_hand_controller_spawner,
         fault_controller_spawner,
         move_group_node,
+        servo_node,
         static_tf,
     ]
 

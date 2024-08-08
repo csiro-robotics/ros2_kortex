@@ -31,7 +31,9 @@
     isaac_joint_commands:=/isaac_joint_commands
     isaac_joint_states:=/isaac_joint_states
     use_external_cable:=false
-    initial_positions:=${dict(joint_1=0.0,joint_2=0.0,joint_3=0.0,joint_4=0.0,joint_5=0.0,joint_6=0.0,joint_7=0.0)}" >
+    initial_positions:=${dict(joint_1=0.0,joint_2=0.0,joint_3=0.0,joint_4=0.0,joint_5=0.0,joint_6=0.0,joint_7=0.0)}
+    high_velocity_torque_mode:=false
+    gravity_compensation_urdf:=${find kortex_description}/robots/gen3_7dof_2f85_intertial.urdf" >
 
     <!-- ros2 control include -->
     <xacro:include filename="$(find kortex_description)/arms/gen3/${dof}dof/urdf/kortex.ros2_control.xacro" />
@@ -56,7 +58,9 @@
       use_internal_bus_gripper_comm="${use_internal_bus_gripper_comm}"
       gripper_max_velocity="${gripper_max_velocity}"
       gripper_max_force="${gripper_max_force}"
-      gripper_joint_name="${gripper_joint_name}"/>
+      gripper_joint_name="${gripper_joint_name}"
+      high_velocity_torque_mode="${high_velocity_torque_mode}"
+      gravity_compensation_urdf:="${gravity_compensation_urdf}"/>
 
     <joint name="${prefix}base_joint" type="fixed">
       <xacro:insert_block name="origin" />
@@ -81,7 +85,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/base_link.dae" />
+          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/collision/base_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -103,7 +107,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/shoulder_link.dae" />
+          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/collision/shoulder_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -159,7 +163,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/half_arm_1_link.dae" />
+          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/collision/half_arm_1_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -193,7 +197,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/half_arm_2_link.dae" />
+          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/collision/half_arm_2_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -249,7 +253,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/forearm_link.dae" />
+          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/collision/forearm_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -283,7 +287,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/spherical_wrist_1_link.dae" />
+          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/collision/spherical_wrist_1_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -339,7 +343,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/spherical_wrist_2_link.dae" />
+          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/collision/spherical_wrist_2_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -374,7 +378,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/bracelet_with_vision_link.dae" />
+          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/collision/bracelet_with_vision_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -398,7 +402,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/bracelet_no_vision_link.dae" />
+          <mesh filename="file://$(find kortex_description)/arms/gen3/${dof}dof/meshes/collision/bracelet_no_vision_link.STL" />
         </geometry>
       </collision>
     </link>
