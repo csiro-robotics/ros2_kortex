@@ -75,11 +75,10 @@ KortexMultiInterfaceHardware::KortexMultiInterfaceHardware()
   start_gripper_controller_(false),
   start_estop_controller_(false),
   first_pass_(true),
-  gripper_joint_name_(""),
   using_high_velocity_torque_mode_(false),
-  gravity_compensation_enabled_(false),
+  gripper_joint_name_(""),
   use_internal_bus_gripper_comm_(false),
-  urdf_filepath_("")
+  gravity_compensation_enabled_(false)
 {
   RCLCPP_INFO(LOGGER, "Setting severity threshold to DEBUG");
   auto ret = rcutils_logging_set_logger_level(LOGGER.get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
@@ -321,38 +320,39 @@ CallbackReturn KortexMultiInterfaceHardware::on_init(const hardware_interface::H
     RCLCPP_WARN(LOGGER, "CAUTION! High-velocity torque mode will be enabled for effort control");
   }
 
-  if (
-    (info_.hardware_parameters["use_internal_bus_gripper_comm"] == "true") ||
-    (info_.hardware_parameters["use_internal_bus_gripper_comm"] == "True"))
+  if ((info_.hardware_parameters["use_internal_bus_gripper_comm"] == "true") ||
+      (info_.hardware_parameters["use_internal_bus_gripper_comm"] == "True"))
   {
     use_internal_bus_gripper_comm_ = true;
     RCLCPP_INFO(LOGGER, "Using internal bus communication for gripper!");
   }
 
+  // INITIALISE PINNOCHIO FROM URDF XML
   try
   {
-    // pinnochio initialization
-    urdf_filepath_ = info_.hardware_parameters["gravity_compensation_urdfile"];
-    pinocchio::urdf::buildModel(urdf_filepath_, grav_model);
-    grav_data = pinocchio::Data(grav_model);
-    grav_joint_q_ = pinocchio::neutral(grav_model);
-    grav_torques_ = pinocchio::computeGeneralizedGravity(grav_model, grav_data, grav_joint_q_);
+    pinocchio::urdf::buildModelFromXML(info_.original_xml, grav_model_);
+    
+    // check if we have the appropriate number of joints
+    if (grav_model_.nv < 6)
+    {
+      throw std::runtime_error("incorrect number of joints found in parsed XML!");
+    }
+
+    grav_data_ = pinocchio::Data(grav_model_);
+    joint_q_ = pinocchio::neutral(grav_model_);
+    grav_torques_ = Eigen::VectorXd::Zero(grav_model_.nv);
+    
     gravity_compensation_enabled_ = true;
+    
+    RCLCPP_INFO(LOGGER, "Gravity compensation enabled for effort control mode");
   }
   catch (const std::exception& e)
   {
+    // no gravity compensation torques or end effector feedback will be used
     gravity_compensation_enabled_ = false;
     RCLCPP_ERROR_STREAM(LOGGER, "Pinnochio Init error: " << e.what() << std::endl);
-    
-  }
-
-  if (gravity_compensation_enabled_)
-  {
-    RCLCPP_INFO(LOGGER, "Gravity compensation enabled for effort control mode");
-  }
-  else
-  {
     RCLCPP_WARN(LOGGER, "Gravity compensation is disabled for effort control mode!");
+    
   }
 
   RCLCPP_INFO(LOGGER, "Hardware Interface successfully configured");
@@ -880,6 +880,35 @@ return_type KortexMultiInterfaceHardware::read(
     //       feedback_.actuators(i).warning_bank_a() + feedback_.actuators(i).warning_bank_b());
   }
 
+  // calculate end-effector wrench (if pinocchio is initialised)
+  if (gravity_compensation_enabled_)
+  {
+    // convert ROS joint config to pinocchio config
+    for (int i = 0; i < grav_model_.nv; i++)
+    {
+      int jidx = grav_model_.getJointId(grav_model_.names[i + 1]);
+      int qidx = grav_model_.idx_qs[jidx];
+      
+      // Update positions:
+      // Pinocchio uses an SO(2) representation for continuous joints (nqs[i] == 2),
+      // need to handle indexing accordingly
+      if (grav_model_.nqs[jidx] == 2)
+      {
+        joint_q_[qidx] = std::cos(arm_positions_[i]);
+        joint_q_[qidx + 1] = std::sin(arm_positions_[i]);
+      }
+      else
+      {
+        joint_q_[qidx] = arm_positions_[i];
+      }
+    }
+
+    grav_torques_ = pinocchio::computeGeneralizedGravity(grav_model_, grav_data_, joint_q_);
+
+    // RCLCPP_DEBUG_THROTTLE(LOGGER, clock_, 500, "grav_torques: [%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f]",
+    //                         grav_torques_[0], grav_torques_[1], grav_torques_[2], grav_torques_[3], grav_torques_[4], grav_torques_[5], grav_torques_[6]);
+  }
+
   // add all base's faults and warnings into series
   in_fault_ += (feedback_.base().fault_bank_a() + feedback_.base().fault_bank_b());
 
@@ -1095,30 +1124,6 @@ void KortexMultiInterfaceHardware::prepareCommands()
   else if ((joint_control_mode_ == k_api::ActuatorConfig::ControlMode::TORQUE) || 
            (joint_control_mode_ == k_api::ActuatorConfig::ControlMode::TORQUE_HIGH_VELOCITY))
   {   
-
-    if (gravity_compensation_enabled_)
-    {
-
-      // convert ROS joint config to pinocchio config
-      for (int i = 0; i < grav_model.nv; i++)
-      {
-        int jidx = grav_model.getJointId(grav_model.names[i + 1]);
-        int qidx = grav_model.idx_qs[jidx];
-        // nqs[i] is 2 for continuous joints in pinocchio
-        if (grav_model.nqs[jidx] == 2)
-        {
-          grav_joint_q_[qidx] = std::cos(arm_positions_[i]);
-          grav_joint_q_[qidx + 1] = std::sin(arm_positions_[i]);
-        }
-        else
-        {
-          grav_joint_q_[qidx] = arm_positions_[i];
-        }
-      }
-    }
-
-    grav_torques_ = pinocchio::computeGeneralizedGravity(grav_model, grav_data, grav_joint_q_);
-    
     for (size_t i = 0; i < actuator_count_; i++)
     {
       cmd_degrees_tmp_ = static_cast<float>(
@@ -1127,8 +1132,13 @@ void KortexMultiInterfaceHardware::prepareCommands()
       
       if (gravity_compensation_enabled_)
       {
-        cmd_eff_tmp_ = arm_efforts_[i] + grav_torques_[i];
+        cmd_eff_tmp_ = arm_commands_efforts_[i] + grav_torques_[i];
       }
+      else
+      {
+        cmd_eff_tmp_ = arm_commands_efforts_[i];
+      }
+
       base_command_.mutable_actuators(static_cast<int>(i))->set_torque_joint(cmd_eff_tmp_);
 
       base_command_.mutable_actuators(static_cast<int>(i))->set_command_id(base_command_.frame_id());

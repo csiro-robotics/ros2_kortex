@@ -43,7 +43,11 @@
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 
 #include <pinocchio/algorithm/joint-configuration.hpp>
+#include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
+#include <pinocchio/algorithm/aba.hpp>
+
 #include <pinocchio/parsers/sample-models.hpp>
 
 #include "kortex_driver/visibility_control.h"
@@ -236,11 +240,10 @@ private:
 
   // Model for gravity compensation
   bool gravity_compensation_enabled_;
-  std::string urdf_filepath_;
-  Eigen::VectorXd grav_joint_q_;
+  Eigen::VectorXd joint_q_;
   Eigen::VectorXd grav_torques_;
-  pinocchio::Model grav_model;
-  pinocchio::Data  grav_data;
+  pinocchio::Model grav_model_;
+  pinocchio::Data  grav_data_;
 
   void sendTwistCommand();
   void incrementId();
