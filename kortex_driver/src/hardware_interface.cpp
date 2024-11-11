@@ -252,11 +252,9 @@ CallbackReturn KortexMultiInterfaceHardware::on_init(const hardware_interface::H
         LOGGER, "Error sub-code: " << k_api::SubErrorCodes_Name(
                   k_api::SubErrorCodes((ex.getErrorInfo().getError().error_sub_code()))));
     }
-
-    // low level servoing on startup
-    servoing_mode_hw_.set_servoing_mode(Kinova::Api::Base::LOW_LEVEL_SERVOING);
-    arm_mode_ = Kinova::Api::Base::LOW_LEVEL_SERVOING;
-    base_.SetServoingMode(servoing_mode_hw_);
+    
+    base_.ApplyEmergencyStop(0, {false, 0, 100});
+    base_.ApplyEmergencyStop(0, {false, 0, 100});
   }
 
   // initialize kortex api twist commandd
@@ -284,6 +282,16 @@ CallbackReturn KortexMultiInterfaceHardware::on_init(const hardware_interface::H
     actuator_count_, integration_lvl_t::UNDEFINED);  // start in undefined
   gripper_command_position_ = std::numeric_limits<double>::quiet_NaN();
   gripper_position_ = std::numeric_limits<double>::quiet_NaN();
+
+  // start all actuators in low-level position mode
+  control_mode_message_.set_control_mode(k_api::ActuatorConfig::ControlMode::POSITION);
+  for (std::size_t idx = 1; idx < actuator_count_ + 1; idx++)
+  {
+    actuator_config_.SetControlMode(control_mode_message_, idx);
+  }
+  servoing_mode_hw_.set_servoing_mode(Kinova::Api::Base::LOW_LEVEL_SERVOING);
+  arm_mode_ = Kinova::Api::Base::LOW_LEVEL_SERVOING;
+  base_.SetServoingMode(servoing_mode_hw_);
 
   // set size of the twist interface
   twist_commands_.resize(6, 0.0);
@@ -665,19 +673,13 @@ return_type KortexMultiInterfaceHardware::perform_command_mode_switch(
   {
     estop_controller_running_ = false;
   }
-
+  
   if (start_joint_based_controller_)
   {
-    servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::LOW_LEVEL_SERVOING);
-    base_.SetServoingMode(servoing_mode_hw_);
-    arm_mode_ = k_api::Base::ServoingMode::LOW_LEVEL_SERVOING;
     twist_controller_running_ = false;
     arm_commands_positions_ = arm_positions_;
     arm_commands_efforts_ = arm_efforts_;
     joint_based_controller_running_ = true;
-
-    // refresh feedback
-    feedback_ = base_cyclic_.RefreshFeedback();
 
     // set command mode for lowlevel servoing (lowest control level has priority)
     if (!start_modes_.empty() && 
@@ -704,18 +706,30 @@ return_type KortexMultiInterfaceHardware::perform_command_mode_switch(
       joint_control_mode_ = k_api::ActuatorConfig::ControlMode::TORQUE; //TORQUE_HIGH_VELOCITY);
     }
 
-    // send command switch to actuators
-    for (std::size_t idx = 1; idx < actuator_count_ + 1; idx++)
+    if (!in_fault_)
     {
-      actuator_config_.SetControlMode(control_mode_message_, idx);
-    }
+      servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::LOW_LEVEL_SERVOING);
+      base_.SetServoingMode(servoing_mode_hw_);
+      arm_mode_ = k_api::Base::ServoingMode::LOW_LEVEL_SERVOING;
 
+      // refresh feedback
+      feedback_ = base_cyclic_.RefreshFeedback();
+
+      // send command switch to actuators
+      for (std::size_t idx = 1; idx < actuator_count_ + 1; idx++)
+      {
+        actuator_config_.SetControlMode(control_mode_message_, idx);
+      }
+    }
   }
   if (start_twist_controller_)
   {
-    servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
-    base_.SetServoingMode(servoing_mode_hw_);
-    arm_mode_ = k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING;
+    if (!in_fault_)
+    {
+      servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
+      base_.SetServoingMode(servoing_mode_hw_);
+      arm_mode_ = k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING;
+    }
     joint_based_controller_running_ = false;
     twist_commands_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     twist_controller_running_ = true;
@@ -780,6 +794,9 @@ CallbackReturn KortexMultiInterfaceHardware::on_activate(
 
   // Send a first frame
   base_feedback = base_cyclic_.Refresh(base_command_);
+
+  RCLCPP_INFO(LOGGER, "Gripper command interface initialized");
+
   // Set some default values
   for (std::size_t i = 0; i < actuator_count_; i++)
   {
@@ -812,6 +829,18 @@ CallbackReturn KortexMultiInterfaceHardware::on_activate(
     arm_joints_control_level_[i] = integration_lvl_t::UNDEFINED;
   }
 
+  control_mode_message_.set_control_mode(k_api::ActuatorConfig::ControlMode::POSITION);
+  for (std::size_t idx = 1; idx < actuator_count_ + 1; idx++)
+  {
+    actuator_config_.SetControlMode(control_mode_message_, idx);
+  }
+  
+  servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
+  base_.SetServoingMode(servoing_mode_hw_);
+  
+  base_.ApplyEmergencyStop(0, {false, 0, 100});
+  base_.ApplyEmergencyStop(0, {false, 0, 100});
+  
   RCLCPP_INFO(LOGGER, "KortexMultiInterfaceHardware successfully activated!");
   return CallbackReturn::SUCCESS;
 }
@@ -941,21 +970,44 @@ return_type KortexMultiInterfaceHardware::write(
     return return_type::OK;
   }
 
-  if (!std::isnan(estop_cmd_) && estop_controller_running_)
+  // keep arm stopped until we get a valid estop interface
+  if (!estop_controller_running_)
+  {
+    control_mode_message_.set_control_mode(k_api::ActuatorConfig::ControlMode::POSITION);
+    for (std::size_t idx = 1; idx < actuator_count_ + 1; idx++)
+    {
+      actuator_config_.SetControlMode(control_mode_message_, idx);
+    }
+    
+    servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
+    base_.SetServoingMode(servoing_mode_hw_);
+    
+    base_.ApplyEmergencyStop(0, {false, 0, 100});
+    base_.ApplyEmergencyStop(0, {false, 0, 100});
+  }
+  else if (!std::isnan(estop_cmd_))
   {
     try
     {
       if (estop_cmd_)
       {
-        control_mode_message_.set_control_mode(k_api::ActuatorConfig::ControlMode::POSITION);
-        for (std::size_t idx = 1; idx < actuator_count_ + 1; idx++)
+        // ACTIVATE E-STOP
+
+        // change control mode to position if in lowlevel
+        if (feedback_.base().active_state() == k_api::Common::ARMSTATE_SERVOING_LOW_LEVEL)
         {
-          actuator_config_.SetControlMode(control_mode_message_, idx);
+          control_mode_message_.set_control_mode(k_api::ActuatorConfig::ControlMode::POSITION);
+          for (std::size_t idx = 1; idx < actuator_count_ + 1; idx++)
+          {
+            actuator_config_.SetControlMode(control_mode_message_, idx);
+          }
         }
-        
+
+        // switch to highlevel servoing
         servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
         base_.SetServoingMode(servoing_mode_hw_);
         
+        // apply estop
         base_.ApplyEmergencyStop(0, {false, 0, 100});
         base_.ApplyEmergencyStop(0, {false, 0, 100});
         
@@ -963,15 +1015,20 @@ return_type KortexMultiInterfaceHardware::write(
       }
       else
       {
+        // CLEAR E-STOP
+
         // change servoing mode first
         servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
         base_.SetServoingMode(servoing_mode_hw_);
+        
         // apply emergency stop - twice to make it sure as calling it once appeared to be unreliable
         // (detected by testing)
         base_.ApplyEmergencyStop(0, {false, 0, 100});
         base_.ApplyEmergencyStop(0, {false, 0, 100});
+        
         // clear faults
         base_.ClearFaults();
+        
         // back to original servoing mode
         if (arm_mode_ == k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING)
         {
@@ -991,6 +1048,7 @@ return_type KortexMultiInterfaceHardware::write(
           }
 
         }
+        
         estop_async_success_ = 1.0;
       }
     }
@@ -1074,11 +1132,24 @@ return_type KortexMultiInterfaceHardware::write(
     // this is needed when the robot was faulted
     // so we can internally conclude it is not faulted anymore
     feedback_ = base_cyclic_.RefreshFeedback();
-    RCLCPP_DEBUG_THROTTLE(
-      LOGGER,
-      clock_,
-      500,
-      "Fault detected on robot! Active State: %d, Fault count: %f", feedback_.base().active_state(), in_fault_);
+    
+    // check for specific combo that is expected in normal estop operation
+    if ((feedback_.base().active_state() == 4) && (in_fault_ == 8388609.0))
+    {
+      RCLCPP_DEBUG_THROTTLE(
+        LOGGER,
+        clock_,
+        1000,
+        "Robot e-stop active, arm operation paused.");
+    }
+    else
+    {
+      RCLCPP_DEBUG_THROTTLE(
+        LOGGER,
+        clock_,
+        500,
+        "Fault detected on robot! Active State: %d, Fault count: %f", feedback_.base().active_state(), in_fault_);
+    }
   }
 
   return return_type::OK;
