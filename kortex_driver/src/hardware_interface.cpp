@@ -235,37 +235,33 @@ CallbackReturn KortexMultiInterfaceHardware::on_init(const hardware_interface::H
   RCLCPP_INFO(LOGGER, "Session created");
 
   // reset faults on activation, go back to low level servoing after
-  {
-    servoing_mode_hw_.set_servoing_mode(Kinova::Api::Base::SINGLE_LEVEL_SERVOING);
-    base_.SetServoingMode(servoing_mode_hw_);
-    arm_mode_ = Kinova::Api::Base::SINGLE_LEVEL_SERVOING;
+  servoing_mode_hw_.set_servoing_mode(Kinova::Api::Base::SINGLE_LEVEL_SERVOING);
+  base_.SetServoingMode(servoing_mode_hw_);
+  arm_mode_ = Kinova::Api::Base::SINGLE_LEVEL_SERVOING;
 
-    try
-    {
-      base_.ClearFaults();
-    }
-    catch (k_api::KDetailedException & ex)
-    {
-      RCLCPP_ERROR_STREAM(LOGGER, "Kortex exception: " << ex.what());
+  base_.ApplyEmergencyStop(0, {false, 0, 100});
+  base_.ApplyEmergencyStop(0, {false, 0, 100});
 
-      RCLCPP_ERROR_STREAM(
-        LOGGER, "Error sub-code: " << k_api::SubErrorCodes_Name(
-                  k_api::SubErrorCodes((ex.getErrorInfo().getError().error_sub_code()))));
-    }
-    
-    base_.ApplyEmergencyStop(0, {false, 0, 100});
-    base_.ApplyEmergencyStop(0, {false, 0, 100});
-  }
+  // try
+  // {
+  //   base_.ClearFaults();
+  // }
+  // catch (k_api::KDetailedException & ex)
+  // {
+  //   RCLCPP_ERROR_STREAM(LOGGER, "Kortex exception: " << ex.what());
 
-  // initialize kortex api twist commandd
-  {
-    k_api_twist_command_.set_reference_frame(k_api::Common::CARTESIAN_REFERENCE_FRAME_TOOL);
-    // command.set_duration = execute time (milliseconds) according to the api ->
-    // (not implemented yet)
-    // see: https://github.com/Kinovarobotics/kortex/blob/master/api_cpp/doc/markdown/messages/Base/TwistCommand.md
-    k_api_twist_command_.set_duration(0);
-    k_api_twist_ = k_api_twist_command_.mutable_twist();
-  }
+  //   RCLCPP_ERROR_STREAM(
+  //     LOGGER, "Error sub-code: " << k_api::SubErrorCodes_Name(
+  //               k_api::SubErrorCodes((ex.getErrorInfo().getError().error_sub_code()))));
+  // }
+
+
+  k_api_twist_command_.set_reference_frame(k_api::Common::CARTESIAN_REFERENCE_FRAME_TOOL);
+  // command.set_duration = execute time (milliseconds) according to the api ->
+  // (not implemented yet)
+  // see: https://github.com/Kinovarobotics/kortex/blob/master/api_cpp/doc/markdown/messages/Base/TwistCommand.md
+  k_api_twist_command_.set_duration(0);
+  k_api_twist_ = k_api_twist_command_.mutable_twist();
 
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -1004,8 +1000,8 @@ return_type KortexMultiInterfaceHardware::write(
         }
 
         // switch to highlevel servoing
-        servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
-        base_.SetServoingMode(servoing_mode_hw_);
+        // servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
+        // base_.SetServoingMode(servoing_mode_hw_);
         
         // apply estop
         base_.ApplyEmergencyStop(0, {false, 0, 100});
@@ -1018,14 +1014,21 @@ return_type KortexMultiInterfaceHardware::write(
         // CLEAR E-STOP
 
         // change servoing mode first
-        servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
-        base_.SetServoingMode(servoing_mode_hw_);
+        // servoing_mode_hw_.set_servoing_mode(k_api::Base::ServoingMode::SINGLE_LEVEL_SERVOING);
+        // base_.SetServoingMode(servoing_mode_hw_);
         
-        // apply emergency stop - twice to make it sure as calling it once appeared to be unreliable
-        // (detected by testing)
-        base_.ApplyEmergencyStop(0, {false, 0, 100});
-        base_.ApplyEmergencyStop(0, {false, 0, 100});
+        // // apply emergency stop - twice to make it sure as calling it once appeared to be unreliable
+        // // (detected by testing)
+        // base_.ApplyEmergencyStop(0, {false, 0, 100});
+        // base_.ApplyEmergencyStop(0, {false, 0, 100});
         
+        // prepare joint commands before clearing
+        if (arm_mode_ == k_api::Base::ServoingMode::LOW_LEVEL_SERVOING)
+        {
+          prepareCommands();
+        }
+
+
         // clear faults
         base_.ClearFaults();
         
