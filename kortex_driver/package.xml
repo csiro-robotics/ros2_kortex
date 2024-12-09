@@ -16,7 +16,7 @@
   <build_depend>eigen</build_depend>
   
   <depend>hardware_interface</depend>
-  <depend>pinnochio</depend>
+  <depend>pinocchio</depend>
   <depend>kortex_api</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
